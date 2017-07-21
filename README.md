@@ -14,4 +14,4 @@ lbpTest01 ->> has cpp file which perfrom local binary pattern on gray scale imag
   lbpTest02 ->> is as same as lbpTest01. The only difference is that the lbp functionality has been moved to a function and later on called in the main(). 
   
   
-  
+  medianLbp ->> has source file that can perfrom median LBP operation. it is bit slow as it is using the median pixel value as a threshold. STL container median operation can make htis program faster. For more info look at the main code
