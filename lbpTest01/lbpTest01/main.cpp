@@ -219,10 +219,10 @@ int main(){
 
 
 	//Concatinating features of scale 1 to 3
-	for (int i = 0; i < 256; i++){
+	for (int i = 0; i < binSize; i++){
 		featureConCat[i] = (double)histScale1[i];
-		featureConCat[i + (256 * 1)] = (double)histScale2[i];
-		featureConCat[i + (256 * 2)] = (double)histScale3[i];
+		featureConCat[i + (binSize * 1)] = (double)histScale2[i];
+		featureConCat[i + (binSize * 2)] = (double)histScale3[i];
 	}
 
 
