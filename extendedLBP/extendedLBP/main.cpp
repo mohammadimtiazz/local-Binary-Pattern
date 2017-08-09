@@ -3,7 +3,10 @@
 #include <cv.h>
 #include <cxcore.h>
 #include <highgui.h> 
+#define _USE_MATH_DEFINES		//for using M_PI
 #include <math.h>
+
+
 
 using namespace	std;
 typedef unsigned char u_int8_t;
@@ -13,10 +16,11 @@ typedef unsigned char u_int8_t;
 //NI_LBP takes avg of the pix in current window, used it as a threshold and returns three histogram features for scale 1,2,3
 void extended_Lbp_ni(u_int8_t **pGray, int rows, int cols, int *histScale1, int *histScale2, int *histScale3);		
 
-
 //CI_LBP takes avg of the entire image, used it as a threshold to binarize central pixels and returns three histogram features for scale 1,2,3
 void extended_Lbp_ci(u_int8_t **pGray, int rows, int cols, int *histScale1, int *histScale2, int *histScale3);
 
+//RI_LBP takes central pixel as reference but the selection of surrounding pixels arrange in circle wise for radious chages from 1 to 3
+void extended_Lbp_ri(u_int8_t **pGray, int rows, int cols, int radious, int neighbors, int *histScale1, int *histScale2, int *histScale3);
 
 //Supporting functions
 double round(double d);		//rounding
@@ -321,6 +325,139 @@ void extended_Lbp_ci(u_int8_t **pGray, int rows, int cols, int *histScale1, int 
 }
 
 
+void extended_Lbp_ri(u_int8_t **pGray, int rows, int cols, int radious, int neighbors, int *histScale1, int *histScale2, int *histScale3){
+
+	int binConv = 0;
+
+	//looping through different radious
+	for (radious = 1 ; radious < 4; radious++){
+		cout << "Radial LBP operation is running in radious " << radious << " ... " << endl << endl;
+
+		//create a radious sized IplImage for saving LBP image
+		unsigned int **pLbpImg;
+		pLbpImg = new unsigned int *[rows - (2 * radious)];
+
+		for(int i = 0; i < (rows - (2 * radious)); i++){
+			pLbpImg[i] = new unsigned int[cols - (2*radious)];
+		}
+
+		for (int y = 0; y < rows - (2 * radious); y++)
+		{
+			for (int x = 0; x < cols - (2*radious); x++)
+			{
+				pLbpImg[y][x] = 0;
+			}
+		}
+
+		//calculating through different readious pos
+		for(int n=0; n<neighbors; n++) {
+
+			// sample points
+			float x = static_cast<float>(radious) * cos(2.0 * M_PI * n/ static_cast<float>(neighbors));
+			float y = static_cast<float>(radious) * -sin(2.0 * M_PI * n/ static_cast<float>(neighbors));
+			// relative indices
+			int fx = static_cast<int>(floor(x));
+			int fy = static_cast<int>(floor(y));
+			int cx = static_cast<int>(ceil(x));
+			int cy = static_cast<int>(ceil(y));
+			// fractional part
+			float ty = y - fy;
+			float tx = x - fx;
+			// set interpolation weights
+			float w1 = (1 - tx) * (1 - ty);
+			float w2 =      tx  * (1 - ty);
+			float w3 = (1 - tx) *      ty;
+			float w4 =      tx  *      ty;
+
+			//cout << "fx: " << fx << endl;
+			//cout << "fy: " << fy << endl;
+			//cout << "cx: " << cx << endl;
+			//cout << "cy: " << cy << endl;
+
+			//cout << "w1: " << w1 << endl;
+			//cout << "w2: " << w2 << endl;
+			//cout << "w3: " << w3 << endl;
+			//cout << "w4: " << w4 << endl;
+
+			//cout << "neighbour: " << n << endl;
+
+			//lbp running for radious 1
+			for(int y = radious; y < rows - radious; y++){
+				for(int x = radious; x < cols - radious; x++){
+					float t = w1 * pGray[y + fy][x + fx] + w2 * pGray[y + fy][x + cx] + w3 * pGray[y + cy][x + fx] + w4 * pGray[y + cy][x + fx];
+					//cout << "t: "<<t << endl;
+					pLbpImg[y - radious][x - radious] += ((t > pGray[y][x]) && (abs(t-pGray[y][x]) > std::numeric_limits<unsigned char>::epsilon())) << n;
+
+				}
+			}
+
+		}
+
+		//Create a blank IplImage with zeros filled in
+		IplImage *imgSave = cvCreateImage(cvSize(cols - (2*radious), rows - (2 * radious)), IPL_DEPTH_8U, 1);
+		cvZero(imgSave);
+
+		//moving lbp image data from pLbpImg arry to imgSave IplImage
+		for (int y = 0; y < rows - (2 * radious); y++)
+		{
+			for (int x = 0; x < cols - (2*radious); x++)
+			{
+				
+				imgSave->imageData[imgSave->widthStep * y + x * 1] = pLbpImg[y][x];
+				binConv = (int)pLbpImg[y][x];
+				if (radious == 1)
+					histScale1[int(binConv)]++;
+				else if (radious == 2)
+					histScale2[int(binConv)]++;
+				else
+					histScale3[int(binConv)]++;				
+			}
+		}
+		cout << endl << endl;
+
+	
+
+
+		if (radious == 1){
+
+			cvSaveImage("savedExRDLbpImgeS1.bmp", imgSave);
+			//check save image status
+			if (!cvSaveImage("savedExRDLbpImgeS1.bmp", imgSave))
+				cout << "Failed to save savedExRDLbpImgeS1" << endl << endl;
+			else
+				cout<<"Successfully save savedExRDLbpImgeS1" << endl << endl;
+
+		}
+		else if (radious == 2){
+
+		cvSaveImage("savedExRDLbpImgeS2.bmp", imgSave);
+		//check save image status
+		if (!cvSaveImage("savedExRDLbpImgeS2.bmp", imgSave))
+			cout << "Failed to save savedExRDLbpImgeS2" << endl << endl;
+		else
+			cout<<"Successfully save savedExRDLbpImgeS2" << endl << endl;
+
+		}
+		else {
+
+			cvSaveImage("savedExRDLbpImgeS3.bmp", imgSave);
+			//check save image status
+			if (!cvSaveImage("savedExRDLbpImgeS3.bmp", imgSave))
+				cout << "Failed to save savedExRDLbpImgeS3" << endl << endl;
+			else
+				cout<<"Successfully save savedExRDLbpImgeS3" << endl << endl;
+
+		}
+
+		//clean memory
+		delete [] pLbpImg;
+		cvReleaseImage(&imgSave);
+
+	}
+
+}
+
+
 double round(double d)
 {
   return floor(d + 0.5);
@@ -411,7 +548,22 @@ int main(){
 	}
 
 
+	//intialize histScale for saving histogram feature
+	const int binSize2 = 256;
+	int histScale1riLbp[binSize2] = {0}, histScale2riLbp[binSize2] = {0}, histScale3riLbp[binSize2] = {0};
+	int radious = 1;		//start with radious = 1
+	int neighbours = 8;		// looking for 8 neighbours
+	double featureConCatRiLbp[binSize2 * 3] = {0};	//For concatinating three histogram feature
 
+	//Perfrom RI_Lbp function
+	extended_Lbp_ri(pGray, rows, cols, radious, neighbours, histScale1riLbp, histScale2riLbp, histScale3riLbp);
+
+	//Concatinating features of scale 1 to 3
+	for (int i = 0; i < binSize2; i++){
+		featureConCatRiLbp[i] = (double)histScale1riLbp[i];
+		featureConCatRiLbp[i + (binSize2 * 1)] = (double)histScale2riLbp[i];
+		featureConCatRiLbp[i + (binSize2 * 2)] = (double)histScale3riLbp[i];
+	}
 	
 	cin.get();		// press enter to finish the execution
 	return 0;
